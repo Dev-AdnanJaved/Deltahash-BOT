@@ -356,6 +356,37 @@ class DeltaHash:
 
         return None
     
+    async def devices_connect(self, idx: int, proxy_url=None, retries=5):
+        url = f"{self.API_URL}/api/devices/connect"
+        
+        for attempt in range(retries):
+            connector, proxy, proxy_auth = self.build_proxy_config(proxy_url)
+            try:
+                headers = self.initialize_headers(idx)
+                headers["Content-Type"] = "application/json"
+                payload = {}
+
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.post(url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth) as response:
+                        if response.status == 500:
+                            self.accounts[idx]["user_agent"] = random.choice(self.USER_AGENTS["mobile"])
+                            continue
+                        await self.ensure_ok(response)
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                self.print_message(
+                    idx, 
+                    self.display_proxy(proxy_url), 
+                    "Status",
+                    Fore.RED, 
+                    f"Failed to Registering New Device: {Fore.YELLOW+Style.BRIGHT}{str(e)}"
+                )
+
+        return None
+    
     async def mining_connect(self, idx: int, proxy_url=None, retries=5):
         url = f"{self.API_URL}/api/mining/connect"
         
@@ -493,11 +524,34 @@ class DeltaHash:
                     "Status",
                     Fore.RED, 
                     f"No Device Registered. "
-                    f"{Fore.YELLOW + Style.BRIGHT}Plesae Register First{Style.RESET_ALL}"
+                    f"{Fore.YELLOW + Style.BRIGHT}Registering New Devices...{Style.RESET_ALL}"
                 )
-                return None
+
+                device_id = await self.process_devices_connect(idx, proxy_url)
 
             await self.process_mining_connect(idx, device_id, proxy_url)
+
+    async def process_devices_connect(self, idx: int, proxy_url=None):
+        while True:
+            await asyncio.sleep(1)
+
+            connect = await self.devices_connect(idx, proxy_url)
+            if not connect: continue
+
+            device_id = connect.get("user", {}).get("deviceId")
+
+            self.print_message(
+                idx, 
+                self.display_proxy(proxy_url), 
+                "Status",
+                Fore.GREEN, 
+                f"Registering New Device Success "
+                f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
+                f"{Fore.CYAN + Style.BRIGHT} Device Id: {Style.RESET_ALL}"
+                f"{Fore.WHITE + Style.BRIGHT}{device_id}{Style.RESET_ALL}"
+            )
+
+            return device_id
 
     async def process_mining_connect(self, idx: int, device_id: str, proxy_url=None):
         while True:
