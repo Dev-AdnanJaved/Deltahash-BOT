@@ -364,10 +364,9 @@ class DeltaHash:
             try:
                 headers = self.initialize_headers(idx)
                 headers["Content-Type"] = "application/json"
-                payload = {}
 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth) as response:
+                    async with session.post(url=url, headers=headers, json={}, proxy=proxy, proxy_auth=proxy_auth) as response:
                         if response.status == 500:
                             self.accounts[idx]["user_agent"] = random.choice(self.USER_AGENTS["mobile"])
                             continue
@@ -387,7 +386,33 @@ class DeltaHash:
 
         return None
     
-    async def mining_connect(self, idx: int, proxy_url=None, retries=5):
+    async def mining_status(self, idx: int, proxy_url=None, retries=5):
+        url = f"{self.API_URL}/api/mining/status"
+        
+        for attempt in range(retries):
+            connector, proxy, proxy_auth = self.build_proxy_config(proxy_url)
+            try:
+                headers = self.initialize_headers(idx)
+
+                async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
+                    async with session.get(url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth) as response:
+                        await self.ensure_ok(response)
+                        return await response.json()
+            except (Exception, ClientResponseError) as e:
+                if attempt < retries - 1:
+                    await asyncio.sleep(5)
+                    continue
+                self.print_message(
+                    idx, 
+                    self.display_proxy(proxy_url), 
+                    "Status",
+                    Fore.RED, 
+                    f"Failed to Fetch Mining Status: {Fore.YELLOW+Style.BRIGHT}{str(e)}"
+                )
+
+        return None
+    
+    async def mining_connect(self, idx: int, cloud_device_id=None, proxy_url=None, retries=5):
         url = f"{self.API_URL}/api/mining/connect"
         
         for attempt in range(retries):
@@ -395,9 +420,15 @@ class DeltaHash:
             try:
                 headers = self.initialize_headers(idx)
                 headers["Content-Type"] = "application/json"
+                if cloud_device_id:
+                    payload = {
+                        "cloudDeviceId": cloud_device_id
+                    }
+                else:
+                    payload = {}
 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
-                    async with session.post(url=url, headers=headers, json={}, proxy=proxy, proxy_auth=proxy_auth) as response:
+                    async with session.post(url=url, headers=headers, json=payload, proxy=proxy, proxy_auth=proxy_auth) as response:
                         if response.status == 400:
                             self.accounts[idx]["user_agent"] = random.choice(self.USER_AGENTS["mobile"])
                             continue
@@ -455,7 +486,7 @@ class DeltaHash:
 
             if self.ROTATE_PROXY:
                 proxy_url = self.rotate_proxy_for_account(idx)
-    
+
     async def process_auth_user(self, idx: int, proxy_url=None):
         while True:
             await asyncio.sleep(1)
@@ -463,52 +494,86 @@ class DeltaHash:
             user = await self.auth_me(idx, proxy_url)
             if not user: continue
 
-            username = user.get("user", {}).get("username")
-            balance = user.get("user", {}).get("balance")
-            
+            user_data = user.get("user")
+            if not user_data: return False
+
+            username = user_data.get("username")
+            balance = user_data.get("balance")
+
             self.print_message(
-                idx, 
-                self.display_proxy(proxy_url), 
+                idx,
+                self.display_proxy(proxy_url),
                 "Username",
-                Fore.WHITE, 
+                Fore.WHITE,
                 f"{username} "
                 f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
                 f"{Fore.CYAN + Style.BRIGHT} Balance: {Style.RESET_ALL}"
                 f"{Fore.WHITE + Style.BRIGHT}{balance} $DTH{Style.RESET_ALL}"
             )
-            
-            referred_by = user.get("user", {}).get("referredBy")
-            if referred_by is None:
-                await self.apply_code(idx, proxy_url)
 
-            x_followed = user.get("user", {}).get("xFollowed")
+            referred_by = user_data.get("referredBy")
+            if referred_by is None: await self.apply_code(idx, proxy_url)
+
+            x_followed = user_data.get("xFollowed")
             if not x_followed:
-
                 complete = await self.complete_social(idx, "Follow X", "x_follow", proxy_url)
                 if complete:
                     self.print_message(
-                        idx, 
-                        self.display_proxy(proxy_url), 
+                        idx,
+                        self.display_proxy(proxy_url),
                         "Status",
-                        Fore.GREEN, 
+                        Fore.GREEN,
                         f"Task Follow X Completed"
                     )
 
-            tg_joined = user.get("user", {}).get("tgJoined")
+            tg_joined = user_data.get("tgJoined")
             if not tg_joined:
-
                 complete = await self.complete_social(idx, "Join Telegram", "tg_join", proxy_url)
                 if complete:
                     self.print_message(
-                        idx, 
-                        self.display_proxy(proxy_url), 
+                        idx,
+                        self.display_proxy(proxy_url),
                         "Status",
-                        Fore.GREEN, 
+                        Fore.GREEN,
                         f"Task Join Telegram Completed"
                     )
 
             return True
-    
+
+    async def process_mining_status(self, idx: int, proxy_url=None):
+        while True:
+            await asyncio.sleep(30)
+
+            mining = await self.mining_status(idx, proxy_url)
+            if not mining: continue
+
+            epoch_number = mining.get("epoch", {}).get("number")
+            is_mining = mining.get("isMining")
+            balance = mining.get("balance")
+            cloud_devices = mining.get("cloudDevices")
+
+            if cloud_devices:
+                cloud_device_id = cloud_devices[0]["id"]
+            else:
+                cloud_device_id = None
+
+            self.print_message(
+                idx,
+                self.display_proxy(proxy_url),
+                "Epoch",
+                Fore.WHITE,
+                f"{Fore.WHITE + Style.BRIGHT} {epoch_number} {Style.RESET_ALL}"
+                f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
+                f"{Fore.CYAN + Style.BRIGHT} Balance: {Style.RESET_ALL}"
+                f"{Fore.WHITE + Style.BRIGHT}{balance} $DTH{Style.RESET_ALL}"
+            )
+
+            if not is_mining:
+                await self.process_mining_connect(idx, cloud_device_id, proxy_url)
+
+                if not cloud_device_id:
+                    await self.process_mining_heartbeat(idx, proxy_url)
+
     async def process_handle_mining(self, idx: int, proxy_url=None):
         while True:
             await asyncio.sleep(1)
@@ -519,89 +584,92 @@ class DeltaHash:
             device_id = profile.get("deviceId")
             if device_id is None:
                 self.print_message(
-                    idx, 
-                    self.display_proxy(proxy_url), 
+                    idx,
+                    self.display_proxy(proxy_url),
                     "Status",
-                    Fore.RED, 
+                    Fore.RED,
                     f"No Device Registered. "
                     f"{Fore.YELLOW + Style.BRIGHT}Registering New Devices...{Style.RESET_ALL}"
                 )
 
-                device_id = await self.process_devices_connect(idx, proxy_url)
+                await self.process_devices_connect(idx, proxy_url)
+                continue
 
-            await self.process_mining_connect(idx, device_id, proxy_url)
+            await self.process_mining_status(idx, proxy_url)
 
     async def process_devices_connect(self, idx: int, proxy_url=None):
         while True:
             await asyncio.sleep(1)
 
             connect = await self.devices_connect(idx, proxy_url)
-            if not connect: continue
+            if not connect:
+                continue
 
             device_id = connect.get("user", {}).get("deviceId")
 
             self.print_message(
-                idx, 
-                self.display_proxy(proxy_url), 
+                idx,
+                self.display_proxy(proxy_url),
                 "Status",
-                Fore.GREEN, 
+                Fore.GREEN,
                 f"Registering New Device Success "
-                f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
-                f"{Fore.CYAN + Style.BRIGHT} Device Id: {Style.RESET_ALL}"
-                f"{Fore.WHITE + Style.BRIGHT}{device_id}{Style.RESET_ALL}"
             )
 
             return device_id
 
-    async def process_mining_connect(self, idx: int, device_id: str, proxy_url=None):
+    async def process_mining_connect(self, idx: int, cloud_device_id=None, proxy_url=None):
         while True:
             await asyncio.sleep(1)
 
-            connect = await self.mining_connect(idx, proxy_url)
+            connect = await self.mining_connect(idx, cloud_device_id, proxy_url)
             if not connect: continue
 
+            device_id = connect.get("session", {}).get("deviceId")
+
             self.print_message(
-                idx, 
-                self.display_proxy(proxy_url), 
+                idx,
+                self.display_proxy(proxy_url),
                 "Status",
-                Fore.GREEN, 
+                Fore.GREEN,
                 f"Device Connected "
                 f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
                 f"{Fore.CYAN + Style.BRIGHT} Device Id: {Style.RESET_ALL}"
                 f"{Fore.WHITE + Style.BRIGHT}{device_id}{Style.RESET_ALL}"
             )
 
-            await self.process_mining_heartbeat(idx, device_id, proxy_url)
-        
-    async def process_mining_heartbeat(self, idx: int, device_id: str, proxy_url=None):
+            return True
+
+    async def process_mining_heartbeat(self, idx: int, proxy_url=None):
         while True:
             await asyncio.sleep(30)
 
             heartbeat = await self.mining_heartbeat(idx, proxy_url)
-            if not heartbeat: continue
+            if not heartbeat:
+                continue
 
             disconnected = heartbeat.get("disconnected")
             if disconnected:
                 self.print_message(
-                    idx, 
-                    self.display_proxy(proxy_url), 
+                    idx,
+                    self.display_proxy(proxy_url),
                     "Status",
-                    Fore.RED, 
+                    Fore.RED,
                     f"Disconnected. "
                     f"{Fore.YELLOW + Style.BRIGHT}Curently Reconnecting...{Style.RESET_ALL}"
                 )
 
-                await self.process_mining_connect(idx, device_id, proxy_url)
+                await self.process_mining_connect(idx, proxy_url)
+                continue
 
             epoch_number = heartbeat.get("epochNumber")
             tokens_earned = heartbeat.get("tokensEarned")
             new_balance = heartbeat.get("newBalance")
 
             self.print_message(
-                idx, 
-                self.display_proxy(proxy_url), 
+                idx,
+                self.display_proxy(proxy_url),
                 "Status",
-                Fore.GREEN, 
+                Fore.GREEN,
                 f"Heartbeat Sent "
                 f"{Fore.MAGENTA + Style.BRIGHT}-{Style.RESET_ALL}"
                 f"{Fore.CYAN + Style.BRIGHT} Epoch: {Style.RESET_ALL}"
