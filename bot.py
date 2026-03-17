@@ -7,7 +7,7 @@ from aiohttp import (
 from aiohttp_socks import ProxyConnector
 from datetime import datetime
 from colorama import *
-import asyncio, random, sys, re, os
+import asyncio, random, sys, re, os, json
 
 class DeltaHash:
     def __init__(self) -> None:
@@ -22,6 +22,9 @@ class DeltaHash:
         self.proxy_index = 0
         self.account_proxies = {}
         self.accounts = {}
+
+        self.proxy_map_file = "proxy_map.json"
+        self.saved_proxy_map = {}
 
         self.USER_AGENTS = {
             "desktop": [
@@ -118,6 +121,26 @@ class DeltaHash:
             self.log(f"{Fore.RED + Style.BRIGHT}Failed To Load Proxies: {e}{Style.RESET_ALL}")
             self.proxies = []
 
+    def load_proxy_map(self):
+        try:
+            if os.path.exists(self.proxy_map_file):
+                with open(self.proxy_map_file, 'r') as f:
+                    self.saved_proxy_map = json.load(f)
+                self.log(
+                    f"{Fore.GREEN + Style.BRIGHT}Proxy Map Loaded : {Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT}{len(self.saved_proxy_map)} saved mapping(s){Style.RESET_ALL}"
+                )
+        except Exception as e:
+            self.log(f"{Fore.RED + Style.BRIGHT}Failed To Load Proxy Map: {e}{Style.RESET_ALL}")
+            self.saved_proxy_map = {}
+
+    def save_proxy_map(self):
+        try:
+            with open(self.proxy_map_file, 'w') as f:
+                json.dump(self.saved_proxy_map, f, indent=2)
+        except Exception as e:
+            self.log(f"{Fore.RED + Style.BRIGHT}Failed To Save Proxy Map: {e}{Style.RESET_ALL}")
+
     def check_proxy_schemes(self, proxies):
         schemes = ["http://", "https://", "socks4://", "socks5://"]
         if any(proxies.startswith(scheme) for scheme in schemes):
@@ -126,11 +149,20 @@ class DeltaHash:
     
     def get_next_proxy_for_account(self, account):
         if account not in self.account_proxies:
-            if not self.proxies:
-                return None
-            proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
-            self.account_proxies[account] = proxy
-            self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
+            cookie = self.accounts.get(account, {}).get("cookie", str(account))
+
+            if cookie in self.saved_proxy_map:
+                proxy = self.saved_proxy_map[cookie]
+                self.account_proxies[account] = proxy
+            else:
+                if not self.proxies:
+                    return None
+                proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
+                self.account_proxies[account] = proxy
+                self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
+                self.saved_proxy_map[cookie] = proxy
+                self.save_proxy_map()
+
         return self.account_proxies[account]
 
     def rotate_proxy_for_account(self, account):
@@ -139,6 +171,11 @@ class DeltaHash:
         proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
         self.account_proxies[account] = proxy
         self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
+
+        cookie = self.accounts.get(account, {}).get("cookie", str(account))
+        self.saved_proxy_map[cookie] = proxy
+        self.save_proxy_map()
+
         return proxy
     
     def build_proxy_config(self, proxy=None):
@@ -708,7 +745,9 @@ class DeltaHash:
                 f"{Fore.WHITE + Style.BRIGHT}{len(cookies)}{Style.RESET_ALL}"
             )
 
-            if self.USE_PROXY: self.load_proxies()
+            if self.USE_PROXY:
+                self.load_proxies()
+                self.load_proxy_map()
 
             self.log(f"{Fore.CYAN + Style.BRIGHT}={Style.RESET_ALL}"*75)
 
