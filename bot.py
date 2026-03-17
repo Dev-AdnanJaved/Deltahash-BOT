@@ -440,6 +440,16 @@ class DeltaHash:
                         if response.status == 500:
                             self.accounts[idx]["user_agent"] = random.choice(self.USER_AGENTS["mobile"])
                             continue
+                        if response.status == 429:
+                            self.print_message(
+                                idx,
+                                self.display_proxy(proxy_url),
+                                "Status",
+                                Fore.YELLOW,
+                                f"Rate Limited (429). Waiting 60 seconds..."
+                            )
+                            await asyncio.sleep(60)
+                            continue
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -668,12 +678,23 @@ class DeltaHash:
             await self.process_mining_status(idx, proxy_url)
 
     async def process_devices_connect(self, idx: int, proxy_url=None):
+        retry_delay = 30
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(retry_delay)
 
             connect = await self.devices_connect(idx, proxy_url)
             if not connect:
+                retry_delay = min(retry_delay * 2, 300)
+                self.print_message(
+                    idx,
+                    self.display_proxy(proxy_url),
+                    "Status",
+                    Fore.YELLOW,
+                    f"Device Registration Failed. Retrying in {retry_delay}s..."
+                )
                 continue
+
+            retry_delay = 30
 
             device_id = connect.get("user", {}).get("deviceId")
 
