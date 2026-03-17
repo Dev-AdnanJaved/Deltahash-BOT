@@ -512,6 +512,16 @@ class DeltaHash:
                         if response.status == 400:
                             self.accounts[idx]["user_agent"] = random.choice(self.USER_AGENTS["mobile"])
                             continue
+                        if response.status == 429:
+                            self.print_message(
+                                idx,
+                                self.display_proxy(proxy_url),
+                                "Status",
+                                Fore.YELLOW,
+                                f"Rate Limited (429). Waiting 60 seconds..."
+                            )
+                            await asyncio.sleep(60)
+                            continue
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -709,11 +719,23 @@ class DeltaHash:
             return device_id
 
     async def process_mining_connect(self, idx: int, cloud_device_id=None, proxy_url=None):
+        retry_delay = 30
         while True:
-            await asyncio.sleep(1)
+            await asyncio.sleep(retry_delay)
 
             connect = await self.mining_connect(idx, cloud_device_id, proxy_url)
-            if not connect: continue
+            if not connect:
+                retry_delay = min(retry_delay * 2, 300)
+                self.print_message(
+                    idx,
+                    self.display_proxy(proxy_url),
+                    "Status",
+                    Fore.YELLOW,
+                    f"Mining Connect Failed. Retrying in {retry_delay}s..."
+                )
+                continue
+
+            retry_delay = 30
 
             device_id = connect.get("session", {}).get("deviceId")
 
