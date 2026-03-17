@@ -151,6 +151,24 @@ class DeltaHash:
         except Exception as e:
             self.log(f"{Fore.RED + Style.BRIGHT}Failed To Save Proxy Map: {e}{Style.RESET_ALL}")
 
+    def log_failed_proxy(self, failed_proxy):
+        filename = "failed_proxies.txt"
+        try:
+            existing = set()
+            if os.path.exists(filename):
+                with open(filename, 'r') as f:
+                    for line in f:
+                        parts = line.strip().split(" | ")
+                        if parts:
+                            existing.add(parts[-1])
+
+            if failed_proxy not in existing:
+                with open(filename, 'a') as f:
+                    timestamp = datetime.now().strftime('%x %X')
+                    f.write(f"{timestamp} | {failed_proxy}\n")
+        except Exception as e:
+            self.log(f"{Fore.RED + Style.BRIGHT}Failed To Log Failed Proxy: {e}{Style.RESET_ALL}")
+
     def check_proxy_schemes(self, proxies):
         schemes = ["http://", "https://", "socks4://", "socks5://"]
         if any(proxies.startswith(scheme) for scheme in schemes):
@@ -178,6 +196,11 @@ class DeltaHash:
     def rotate_proxy_for_account(self, account):
         if not self.proxies:
             return None
+
+        old_proxy = self.account_proxies.get(account)
+        if old_proxy:
+            self.log_failed_proxy(old_proxy)
+
         proxy = self.check_proxy_schemes(self.proxies[self.proxy_index])
         self.account_proxies[account] = proxy
         self.proxy_index = (self.proxy_index + 1) % len(self.proxies)
