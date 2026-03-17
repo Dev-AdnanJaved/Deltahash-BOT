@@ -130,6 +130,16 @@ class DeltaHash:
                     f"{Fore.GREEN + Style.BRIGHT}Proxy Map Loaded : {Style.RESET_ALL}"
                     f"{Fore.WHITE + Style.BRIGHT}{len(self.saved_proxy_map)} saved mapping(s){Style.RESET_ALL}"
                 )
+
+                if self.proxies:
+                    used_proxies = set(self.saved_proxy_map.values())
+                    for i, proxy in enumerate(self.proxies):
+                        if self.check_proxy_schemes(proxy) not in used_proxies:
+                            self.proxy_index = i
+                            break
+                    else:
+                        self.proxy_index = len(self.saved_proxy_map) % len(self.proxies)
+
         except Exception as e:
             self.log(f"{Fore.RED + Style.BRIGHT}Failed To Load Proxy Map: {e}{Style.RESET_ALL}")
             self.saved_proxy_map = {}
