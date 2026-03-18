@@ -771,7 +771,7 @@ class DeltaHash:
                     f"{Fore.YELLOW + Style.BRIGHT}Curently Reconnecting...{Style.RESET_ALL}"
                 )
 
-                await self.process_mining_connect(idx, proxy_url)
+                await self.process_mining_connect(idx, proxy_url=proxy_url)
                 continue
 
             epoch_number = heartbeat.get("epochNumber")

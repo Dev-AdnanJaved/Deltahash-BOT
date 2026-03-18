@@ -1,0 +1,22 @@
+ubuntu@ip-172-31-45-245:~/Deltahash-BOT$ cat proxy_map.json
+{
+  "connect.sid=s%3ArFJK8If1yXNhKXkP-TnV-LIz2KXJ_b7w.Ujhy9FSi3EyH5Zv9jGPyHrd2ukpDSoCkLcI8wQIFGw0": "http://gxvbeqrr:k4qu3ifvwiun@43.229.9.218:6487",
+  "connect.sid=s%3Am1QobE5vvwN61SO8a95BUd3fIGRdesid.odcvakPD11HbWP4tqoEtmhzHp%2FusSBbs8%2BwOZjB%2F8cc": "http://gxvbeqrr:k4qu3ifvwiun@104.222.185.151:5714",
+  "connect.sid=s%3AlTAmUyCReLvzFIcjDfieq6d1gLtbTA9M.JEexIkNQ4zLCSBJiR5XaX8OT1Y%2B%2FSjpvQezlFISFkP8": "http://gxvbeqrr:k4qu3ifvwiun@82.22.245.28:5852",
+  "connect.sid=s%3Ag9-YJ-yhxhVB4RFnzf_TqxcGSEu4hz3D.P8oWMwawNz%2BR9faDfZVEWXSRYvDMSR43BTuXX03DYqM": "http://gxvbeqrr:k4qu3ifvwiun@108.165.218.81:5820",
+  "connect.sid=s%3Ayi0IGdeAgdD0M_3BGzL99PHwGDoZtmMx.%2BSMniulehDkQ%2Fi5etNcDlGkYN6nY%2BI8NCXD0VA2wwAM": "http://gxvbeqrr:k4qu3ifvwiun@89.45.125.167:5893",
+  "connect.sid=s%3AT9_lvn0om4J_KRuD0IxJUQQo_m5q4CYH.1wE9yLSe9JG73f9bcAC1Tq8ou6XFtF%2FsLUuPaSNs0Fc": "http://gxvbeqrr:k4qu3ifvwiun@198.89.123.40:6582",
+  "connect.sid=s%3AdxDUoOG7a8Umiwf7iQcS7yVQPO3GBI0M.3gGNAnVM7z5Lsxk10%2BRGmGfYom1U1cpElCpR3FdlqI0": "http://gxvbeqrr:k4qu3ifvwiun@45.38.70.165:7103",
+  "connect.sid=s%3AtegvSRbsPAmtg2kYEn0SiTiz_4VB-f2L.c%2BBjS0xbK6jYU2M5Ym3uutXa3qEmP%2FtV%2BSMA3ir8R14": "http://gxvbeqrr:k4qu3ifvwiun@82.22.230.25:7363",
+  "connect.sid=s%3AyDCYTMqY5TsftkWJqb-kslUopQKZTahx.zd%2FkKceDc4%2BXh0DdFmOaSKdKNm36cwu4M1mubL5BGRY": "http://gxvbeqrr:k4qu3ifvwiun@191.101.181.172:6925",
+  "connect.sid=s%3A2shdTSfWX7ED5L19KByhkt_veknsm4qV.SnxcBQ%2Fyne0ptVYLgCT2kt7p18be6LISp%2BefhW26J90": "http://gxvbeqrr:k4qu3ifvwiun@92.112.143.82:6525",
+  "connect.sid=s%3AIZnS03kxN23PaA0Yws8OY74xkcichqo_.FfuJW7kc2W6JrHcATp2dvgzq29hSFOYKkGUXixhdTmM": "http://gxvbeqrr:k4qu3ifvwiun@107.173.93.120:6074",
+  "connect.sid=s%3Ayyg34i8W5CW71pXVdLUkOReklVVd9icl.FyG6HxegiB0TgRTZyZ2TVItRAA83pfn72iisON3Aj6g": "http://gxvbeqrr:k4qu3ifvwiun@145.223.58.81:6350",
+  "connect.sid=s%3Ap10sv5daM6QfgYeR6lot8745mqxIrZPH.G8Ufp7ONtU5iqXFN7ZZ9ql0C5Ub4qscrrLA8CGJvJmw": "http://gxvbeqrr:k4qu3ifvwiun@45.43.70.180:6467",
+  "connect.sid=s%3AqCQxTxV7tKWjViTwjFQLeiG1tR7hKkpm.1vs6HKx4mZmaNnJpvUnKyJqahie5YA7sR8cLNuG0D0w": "http://gxvbeqrr:k4qu3ifvwiun@45.43.82.223:6217",
+  "connect.sid=s%3AbByfWHUR4OOhJS182jYHBNCNR__KUo9e.rQVuLRb85M1QGWAJfnyvEYrf7uV%2BSl0IE4BiKdQA%2BKM": "http://gxvbeqrr:k4qu3ifvwiun@31.59.18.218:6799",
+  "connect.sid=s%3A0KMbyLVmDSWnEqTcOJfRtWNPNfPTzvCU.omjM1ZS54ZdWhfBHuqD6iJ1olXwR6zceCt4WHuM%2BArc": "http://gxvbeqrr:k4qu3ifvwiun@64.137.96.62:6629",
+  "connect.sid=s%3AtnVauUvvCRXF77H0bYotRlR_JYBNO5kR.UwtDajLXe8j5w1179WU6SQGbPKjpMSxbCz5p2jxR09I": "http://gxvbeqrr:k4qu3ifvwiun@154.6.23.224:6691",
+  "connect.sid=s%3ARPJTD2xRA2sSvY-mrEaL2RKtxbwOA9Y6.O7doRgm5UYlRdsPYkOgusI%2FYFFhX4ABBNTraQKtfs94": "http://gxvbeqrr:k4qu3ifvwiun@154.6.116.198:6167",
+  "connect.sid=s%3ANjlDGXTQuEy0nxshStqCzxeWSWyr3mYW.GuLIJ9OT4TFtO7Ch8tG%2F53bZn6evhwjPj53AdjoHDVU": "http://gxvbeqrr:k4qu3ifvwiun@38.154.200.194:5895",
+  "connect.sid=s%3A3_-Cu6Opq5xsM6p3SMICueXpgIX7cC2w.Fi%2By038mfHv9L42CKWo%2FQ%2FY0clErWN4U6Ra3%2BqoK0ME": "http://gxvbeqrr:k4qu3ifvwiun@45.87.51.94:6654"
