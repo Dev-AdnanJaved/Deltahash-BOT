@@ -7,7 +7,10 @@ from aiohttp import (
 from aiohttp_socks import ProxyConnector
 from datetime import datetime
 from colorama import *
+from dotenv import load_dotenv
 import asyncio, random, sys, re, os, json
+
+load_dotenv()
 
 class DeltaHash:
     def __init__(self) -> None:
@@ -28,6 +31,11 @@ class DeltaHash:
 
         self.accounts_info_file = "accounts_info.json"
         self.accounts_info = {}
+
+        self.telegram_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+        self.telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID", "")
+        self.telegram_update_offset = 0
+        self.account_stats = {}
 
         self.USER_AGENTS = {
             "desktop": [
@@ -173,6 +181,67 @@ class DeltaHash:
                 json.dump(self.accounts_info, f, indent=2)
         except Exception as e:
             self.log(f"{Fore.RED + Style.BRIGHT}Failed To Save Accounts Info: {e}{Style.RESET_ALL}")
+
+    async def send_telegram(self, message: str):
+        if not self.telegram_token or not self.telegram_chat_id:
+            return
+        url = f"https://api.telegram.org/bot{self.telegram_token}/sendMessage"
+        try:
+            async with ClientSession(timeout=ClientTimeout(total=10)) as session:
+                await session.post(url, json={
+                    "chat_id": self.telegram_chat_id,
+                    "text": message,
+                    "parse_mode": "HTML"
+                })
+        except Exception:
+            pass
+
+    async def handle_check_command(self):
+        if not self.account_stats:
+            await self.send_telegram("No account data available yet. Bot may still be starting up.")
+            return
+
+        lines = ["<b>DTH Mining - Account Status</b>"]
+        total = 0.0
+        for idx in sorted(self.account_stats.keys()):
+            stats = self.account_stats[idx]
+            username = stats.get("username", "Unknown")
+            balance = stats.get("balance")
+            expired = stats.get("expired", False)
+            if expired:
+                lines.append(f"#{idx} <b>{username}</b>: EXPIRED ❌")
+            elif balance is not None:
+                total += float(balance)
+                lines.append(f"#{idx} <b>{username}</b>: {balance} $DTH")
+            else:
+                lines.append(f"#{idx} <b>{username}</b>: connecting...")
+
+        lines.append(f"\n<b>Total Balance: {round(total, 6)} $DTH</b>")
+        lines.append(f"<i>Accounts: {len(self.account_stats)} | Active: {sum(1 for s in self.account_stats.values() if not s.get('expired') and s.get('balance') is not None)}</i>")
+        await self.send_telegram("\n".join(lines))
+
+    async def poll_telegram_commands(self):
+        if not self.telegram_token or not self.telegram_chat_id:
+            return
+        url = f"https://api.telegram.org/bot{self.telegram_token}/getUpdates"
+        while True:
+            try:
+                async with ClientSession(timeout=ClientTimeout(total=20)) as session:
+                    params = {"timeout": 10, "offset": self.telegram_update_offset, "allowed_updates": ["message"]}
+                    async with session.get(url, params=params) as response:
+                        if response.status == 200:
+                            data = await response.json()
+                            for update in data.get("result", []):
+                                self.telegram_update_offset = update["update_id"] + 1
+                                msg = update.get("message", {})
+                                text = msg.get("text", "").strip().lower()
+                                chat_id = str(msg.get("chat", {}).get("id", ""))
+                                if chat_id == str(self.telegram_chat_id):
+                                    if text == "/check":
+                                        await self.handle_check_command()
+            except Exception:
+                pass
+            await asyncio.sleep(2)
 
     def log_failed_proxy(self, failed_proxy):
         filename = "failed_proxies.txt"
@@ -443,6 +512,20 @@ class DeltaHash:
                                 Fore.RED,
                                 f"Session Expired (401) - Username: {Fore.YELLOW+Style.BRIGHT}{username}{Style.RESET_ALL} - Please Update Cookie On Line {idx} Of cookies.txt"
                             )
+                            if idx not in self.account_stats or not self.account_stats[idx].get("expired"):
+                                self.account_stats[idx] = {
+                                    "username": username,
+                                    "balance": self.account_stats.get(idx, {}).get("balance"),
+                                    "expired": True
+                                }
+                                now = datetime.now().strftime("%m/%d/%y %H:%M:%S")
+                                await self.send_telegram(
+                                    f"⚠️ <b>DTH Bot - Cookie Expired</b>\n"
+                                    f"Account: #{idx} (line {idx} of cookies.txt)\n"
+                                    f"Username: <b>{username}</b>\n"
+                                    f"Time: {now}\n\n"
+                                    f"Please update line {idx} in cookies.txt"
+                                )
                             return "expired"
                         await self.ensure_ok(response)
                         return await response.json()
@@ -628,6 +711,8 @@ class DeltaHash:
             if cookie not in self.accounts_info or self.accounts_info[cookie].get("username") != username:
                 self.accounts_info[cookie] = {"username": username, "account": idx}
                 self.save_accounts_info()
+
+            self.account_stats[idx] = {"username": username, "balance": balance, "expired": False}
 
             self.print_message(
                 idx,
@@ -820,6 +905,11 @@ class DeltaHash:
             tokens_earned = heartbeat.get("tokensEarned")
             new_balance = heartbeat.get("newBalance")
 
+            if idx in self.account_stats:
+                self.account_stats[idx]["balance"] = new_balance
+            else:
+                self.account_stats[idx] = {"username": "Unknown", "balance": new_balance, "expired": False}
+
             self.print_message(
                 idx,
                 self.display_proxy(proxy_url),
@@ -891,6 +981,8 @@ class DeltaHash:
                     }
                     
                 tasks.append(asyncio.create_task(self.process_accounts(idx)))
+
+            tasks.append(asyncio.create_task(self.poll_telegram_commands()))
 
             await asyncio.gather(*tasks)
 
