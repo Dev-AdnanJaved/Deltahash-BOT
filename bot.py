@@ -26,6 +26,9 @@ class DeltaHash:
         self.proxy_map_file = "proxy_map.json"
         self.saved_proxy_map = {}
 
+        self.accounts_info_file = "accounts_info.json"
+        self.accounts_info = {}
+
         self.USER_AGENTS = {
             "desktop": [
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.6312.122 Safari/537.36",
@@ -150,6 +153,26 @@ class DeltaHash:
                 json.dump(self.saved_proxy_map, f, indent=2)
         except Exception as e:
             self.log(f"{Fore.RED + Style.BRIGHT}Failed To Save Proxy Map: {e}{Style.RESET_ALL}")
+
+    def load_accounts_info(self):
+        try:
+            if os.path.exists(self.accounts_info_file):
+                with open(self.accounts_info_file, 'r') as f:
+                    self.accounts_info = json.load(f)
+                self.log(
+                    f"{Fore.GREEN + Style.BRIGHT}Accounts Info Loaded : {Style.RESET_ALL}"
+                    f"{Fore.WHITE + Style.BRIGHT}{len(self.accounts_info)} known account(s){Style.RESET_ALL}"
+                )
+        except Exception as e:
+            self.log(f"{Fore.RED + Style.BRIGHT}Failed To Load Accounts Info: {e}{Style.RESET_ALL}")
+            self.accounts_info = {}
+
+    def save_accounts_info(self):
+        try:
+            with open(self.accounts_info_file, 'w') as f:
+                json.dump(self.accounts_info, f, indent=2)
+        except Exception as e:
+            self.log(f"{Fore.RED + Style.BRIGHT}Failed To Save Accounts Info: {e}{Style.RESET_ALL}")
 
     def log_failed_proxy(self, failed_proxy):
         filename = "failed_proxies.txt"
@@ -411,12 +434,14 @@ class DeltaHash:
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
                     async with session.get(url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth) as response:
                         if response.status == 401:
+                            cookie = self.accounts.get(idx, {}).get("cookie", str(idx))
+                            username = self.accounts_info.get(cookie, {}).get("username", "Unknown")
                             self.print_message(
                                 idx,
                                 self.display_proxy(proxy_url),
                                 "Status",
                                 Fore.RED,
-                                f"Session Expired (401) - Please Update Cookie For This Account"
+                                f"Session Expired (401) - Username: {Fore.YELLOW+Style.BRIGHT}{username}{Style.RESET_ALL} - Please Update Cookie On Line {idx} Of cookies.txt"
                             )
                             return "expired"
                         await self.ensure_ok(response)
@@ -598,6 +623,11 @@ class DeltaHash:
 
             username = user_data.get("username")
             balance = user_data.get("balance")
+
+            cookie = self.accounts.get(idx, {}).get("cookie", str(idx))
+            if cookie not in self.accounts_info or self.accounts_info[cookie].get("username") != username:
+                self.accounts_info[cookie] = {"username": username, "account": idx}
+                self.save_accounts_info()
 
             self.print_message(
                 idx,
@@ -836,6 +866,8 @@ class DeltaHash:
             if self.USE_PROXY:
                 self.load_proxies()
                 self.load_proxy_map()
+
+            self.load_accounts_info()
 
             self.log(f"{Fore.CYAN + Style.BRIGHT}={Style.RESET_ALL}"*75)
 
