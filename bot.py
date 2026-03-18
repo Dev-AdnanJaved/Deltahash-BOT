@@ -410,6 +410,15 @@ class DeltaHash:
 
                 async with ClientSession(connector=connector, timeout=ClientTimeout(total=60)) as session:
                     async with session.get(url=url, headers=headers, proxy=proxy, proxy_auth=proxy_auth) as response:
+                        if response.status == 401:
+                            self.print_message(
+                                idx,
+                                self.display_proxy(proxy_url),
+                                "Status",
+                                Fore.RED,
+                                f"Session Expired (401) - Please Update Cookie For This Account"
+                            )
+                            return "expired"
                         await self.ensure_ok(response)
                         return await response.json()
             except (Exception, ClientResponseError) as e:
@@ -669,6 +678,9 @@ class DeltaHash:
             await asyncio.sleep(1)
 
             profile = await self.user_profile(idx, proxy_url)
+            if profile == "expired":
+                await asyncio.sleep(3600)
+                continue
             if not profile: continue
 
             device_id = profile.get("deviceId")
